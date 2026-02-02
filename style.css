@@ -1,0 +1,31 @@
+body { margin: 0; background: black; color: white; font-family: sans-serif; text-align: center; padding-bottom: 50px; }
+#progress-container { width: 100%; height: 6px; background: #222; position: sticky; top: 0; }
+#progBar { width: 0%; height: 100%; background: #4CAF50; transition: 0.3s; }
+  
+#light { 
+  width: 90vw; height: 30vh; margin: 10px auto; 
+  background: black; border: 2px solid white; border-radius: 12px; 
+  display: flex; align-items: center; justify-content: center; 
+  font-size: 2.2em; overflow: hidden; padding: 10px; box-sizing: border-box;
+}
+
+.controls { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  
+button, input, select { 
+  font-size: 1em; padding: 12px; margin: 5px; 
+  background: #111; color: white; border: 1px solid white; 
+  border-radius: 8px; width: 85vw; max-width: 320px; 
+}
+
+.btn-group { display: flex; gap: 10px; width: 85vw; max-width: 320px; margin: auto; }
+.btn-check { background: #4CAF50; border: none; flex: 2; font-weight: bold; }
+.btn-next { background: #333; flex: 1; border: 1px solid white; }
+.btn-inv { background: #222; border-color: #666; font-size: 0.9em; margin-top: 15px; }
+
+/* Fenêtre Inventaire */
+#inventoryModal { 
+  display:none; position:fixed; top:0; left:0; 
+  width:100%; height:100%; background:black; 
+  z-index:1000; overflow-y:auto; padding:20px; box-sizing:border-box; 
+}
+
