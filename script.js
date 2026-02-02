@@ -7,6 +7,8 @@ let isReverse = false;
 let currentWord = null;
 let attemptsLeft = 0;
 
+let translateReversed = false; // Translate
+
 // Charger les données et les scores au démarrage
 function loadProgress() {
     const saved = localStorage.getItem('polyglotte_progress');
@@ -15,7 +17,11 @@ function loadProgress() {
         Object.keys(parsed).forEach(lang => {
             if (DATA[lang]) {
                 parsed[lang].forEach((item, i) => {
-                    if (DATA[lang][i]) DATA[lang][i].score = item.score || 0;
+                    if (DATA[lang][i]) {
+                        // AJOUTER CETTE LIGNE :
+                        DATA[lang][i].score = item.score || 0;
+                        DATA[lang][i].scoreOral = item.scoreOral || 0; 
+                    }
                 });
             }
         });
@@ -45,8 +51,8 @@ function showScreen(id) {
     }
 }
 
-// --- Nouvelles variables pour le traducteur ---
-let translateReversed = false;
+// ---------------------- Nouvelles variables pour le traducteur ----------------------------
+
 
 function toggleTranslateDirection() {
     translateReversed = !translateReversed;
@@ -113,9 +119,12 @@ function instantTranslate() {
 
 
 function renderInventory() {
-    // 1. On récupère la langue depuis le NOUVEAU sélecteur de l'inventaire
+    // 1. On récupère la langue et la recherche
     const mode = document.getElementById('inventoryLangSelect').value;
     const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    // --- NOUVEAU : On récupère les stats de lecture depuis l'autre clé ---
+    const lectureStats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
     
     if (!DATA[mode]) return;
     
@@ -127,26 +136,32 @@ function renderInventory() {
         w.a.toLowerCase().includes(search)
     );
 
-    // 3. Tri (selon ton choix : alpha, score lecture, ou score oral)
+    // 3. Tri (Modifié pour utiliser l'autre clé quand on trie par score)
     if (currentSort === 'alpha') {
         words.sort((a, b) => a.q.localeCompare(b.q));
     } else if (currentSort === 'score') {
-        words.sort((a, b) => (b.score || 0) - (a.score || 0));
+        // On trie en fonction de ce qu'il y a dans lectureStats
+        words.sort((a, b) => (lectureStats[b.q] || 0) - (lectureStats[a.q] || 0));
     } else if (currentSort === 'scoreOral') {
         words.sort((a, b) => (b.scoreOral || 0) - (a.scoreOral || 0));
     }
 
-    // 4. L'ENDROIT EXACT OÙ TU AJOUTES LE CODE :
+    // 4. Affichage
     const list = document.getElementById('inventory-list');
-    list.innerHTML = words.map(w => `
-        <div class="inventory-item" style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333;">
-            <span><b>${w.q}</b> : ${w.a}</span>
-            <div style="min-width: 80px; text-align: right;">
-                <span title="Lecture">👁️ ${w.score || 0}</span>
-                <span title="Oral" style="margin-left:10px;">👂 ${w.scoreOral || 0}</span>
+    list.innerHTML = words.map(w => {
+        // On récupère la valeur spécifique pour ce mot précis
+        const scoreLecture = lectureStats[w.q] || 0;
+
+        return `
+            <div class="inventory-item" style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333;">
+                <span><b>${w.q}</b> : ${w.a}</span>
+                <div style="min-width: 80px; text-align: right;">
+                    <span title="Lecture">👁️ ${scoreLecture}</span>
+                    <span title="Oral" style="margin-left:10px;">👂 ${w.scoreOral || 0}</span>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // bouton top
@@ -162,8 +177,9 @@ function applyTopSort(val) {
         document.getElementById('topPicker').value = "";
     }, 500);
 }
-
-// --- Oral entraînement ---
+//---------------------------------------------------------------------------------
+// -------------------------- Oral entraînement ----------------------
+//--------------------------------------------------------------------------
 
 // --- Speak spéciale pour oral --- (Doublon)
 function getLangCode(mode) {
@@ -206,9 +222,13 @@ function playMorseBip(sequence) {
         audioCtx.resume();
     }
 
+    // Récupérer la vitesse du curseur (durée d'un point en ms)
+    // On inverse la logique : plus le curseur est haut, plus le temps est court
+    const dotDuration = 220 - document.getElementById('morseSpeed').value;
+
     let time = audioCtx.currentTime + 0.1; 
-    const dot = 0.1; 
-    const dash = 0.3;
+    const dot = dotDuration / 1000; 
+    const dash = dot * 3;
 
     sequence.split('').forEach(symbol => {
         if (symbol === '.' || symbol === '-') {
@@ -242,33 +262,29 @@ function playMorseBip(sequence) {
 
 function playOralAudio() {
     if (!currentWord) return;
-
-    // S'assurer que le contexte audio est prêt
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
     const oralSelect = document.getElementById('oralModeSelect');
     const mode = oralSelect ? oralSelect.value : 'morse_lettres';
     
-    // On définit ce qu'on doit transformer en son
-    const textToConvert = isReverse ? currentWord.a : currentWord.q;
+    // Correction ici : currentWord peut être un objet {q:..., a:...} ou une string
+    let textToConvert = (typeof currentWord === 'string') ? currentWord : currentWord.q;
     
     if (mode.startsWith('morse')) {
         let codeMorse = "";
         let upperText = textToConvert.toUpperCase();
         
         if (mode === 'morse_lettres') {
-            // Si c'est juste une lettre (ex: "A")
             codeMorse = MORSE_MAP[upperText] || "";
         } else {
-            // Si c'est un mot (ex: "BONJOUR"), on traduit chaque lettre
-            codeMorse = upperText.split('').map(lettre => MORSE_MAP[lettre] || "").join(' ');
+            codeMorse = upperText.split('').map(l => MORSE_MAP[l] || "").join(' ');
         }
-        
         playMorseBip(codeMorse); 
     } else {
-        // Mode vocal (anglais, espagnol, etc.)
+        // Mode vocal classique
         const lang = isReverse ? 'fr-FR' : getLangCode(mode);
-        speak2(textToConvert, lang);
+        const vocalText = isReverse ? currentWord.a : currentWord.q;
+        speak2(vocalText, lang);
     }
 }
 // --- LOGIQUE DE L'ENTRAINEMENT ORAL ---
@@ -305,30 +321,83 @@ function updateLivesUI() {
     if (container) container.innerText = "❤️".repeat(attemptsLeft);
 }
 
+// --- Apparence bouton shift ---
+function toggleReverse() {
+    isReverse = !isReverse;
+    const btn = document.getElementById('btn-reverse');
+    btn.innerText = isReverse ? "🔄 Langue : Inversée" : "🔄 Langue : Normale";
+    btn.style.background = isReverse ? "#ffd700" : "#111";
+    btn.style.color = isReverse ? "black" : "white";
+    startQuiz(); // Relance avec le nouveau mode
+}
+
+// --- Affichage ORAL MORSE ---
+
+function updateOralUI() {
+    const mode = document.getElementById('oralModeSelect').value;
+    const reverseArea = document.getElementById('wrapper-reverse');
+    const morseArea = document.getElementById('wrapper-morse-speed');
+
+    if (mode.includes('morse')) {
+        // Mode Morse : on cache l'inversion, on montre la vitesse
+        reverseArea.style.display = 'none';
+        morseArea.style.display = 'block';
+        isReverse = false; // On force la réponse en français
+    } else {
+        // Mode normal : on montre l'inversion, on cache la vitesse
+        reverseArea.style.display = 'block';
+        morseArea.style.display = 'none';
+    }
+}
+
 
 function checkOralAnswer() {
     if (!currentWord) return;
 
     const val = document.getElementById('oralAnswer').value.toLowerCase().trim();
-    const correct = isReverse ? currentWord.q.toLowerCase() : currentWord.a.toLowerCase();
+    const mode = document.getElementById('oralModeSelect').value;
+
+    let correct;
+    if (mode.includes('morse')) {
+        correct = (typeof currentWord === 'string' ? currentWord : currentWord.q).toLowerCase();
+    } else {
+        correct = isReverse ? currentWord.q.toLowerCase() : currentWord.a.toLowerCase();
+    }
 
     if (val === correct) {
-        // On enregistre dans une stat différente !
-        currentWord.scoreOral = (currentWord.scoreOral || 0) + 1;
-        saveProgress(); 
-        alert("Correct à l'oreille !");
+        const wordKey = typeof currentWord === 'string' ? currentWord : currentWord.q;
+        saveWordSuccess(wordKey); 
+        
+        if (typeof currentWord === 'object') {
+            currentWord.scoreOral = (currentWord.scoreOral || 0) + 1;
+            saveProgress(); 
+        }
+
+        alert("Correct !");
+        document.getElementById('oralAnswer').value = "";
         startOralTraining();
     } else {
+        // --- C'est ici que ça se passe ---
         attemptsLeft--;
-        updateLivesUI();
+        
+        // On appelle la fonction qui met à jour l'affichage des cœurs
+        if (typeof updateLivesUI === 'function') {
+            updateLivesUI();
+        }
+
         if (attemptsLeft <= 0) {
             alert("Perdu ! C'était : " + correct);
+            document.getElementById('oralAnswer').value = "";
             startOralTraining();
         } else {
-            playOralAudio(); // On rejoue le son pour aider
+            playOralAudio(); 
         }
     }
 }
+
+//-------------------------------------------------------------------------------------
+// ----------------------------- VOCABULAIRE ---------------------------------------------
+//------------------------------------------------------------------------------------------
 
 // --- Fonction inverser la traduction ---
 function toggleDirection() {
@@ -341,161 +410,177 @@ function toggleDirection() {
 
 // --- AUDIO ---
 function speak(text) {
-  window.speechSynthesis.cancel();
-  const msg = new SpeechSynthesisUtterance(text);
-  const mode = document.getElementById('modeSelect').value;
-  const voices = {'anglais':'en-US','espagnol':'es-ES','italien':'it-IT','allemand':'de-DE','chinois':'zh-CN','coreen':'ko-KR','francais_soutenu':'fr-FR'};
-  msg.lang = voices[mode] || 'fr-FR';
-  window.speechSynthesis.speak(msg);
+    window.speechSynthesis.cancel();
+    const msg = new SpeechSynthesisUtterance(text);
+    const mode = document.getElementById('modeSelect').value;
+    const voices = {'anglais':'en-US','espagnol':'es-ES','italien':'it-IT','allemand':'de-DE','chinois':'zh-CN','coreen':'ko-KR','francais_soutenu':'fr-FR'};
+    msg.lang = voices[mode] || 'fr-FR';
+    window.speechSynthesis.speak(msg);
 }
 
 // --- PROGRESSION ---
 function updateProgress(pts) {
-  let history = JSON.parse(localStorage.getItem('my_score_v2') || '{}');
-  let today = new Date().toLocaleDateString();
-  history[today] = (history[today] || 0) + pts;
-  localStorage.setItem('my_score_v2', JSON.stringify(history));
-  document.getElementById('progBar').style.width = Math.min((history[today] / 20) * 100, 100) + "%";
+    let history = JSON.parse(localStorage.getItem('my_score_v2') || '{}');
+    let today = new Date().toLocaleDateString();
+    history[today] = (history[today] || 0) + pts;
+    localStorage.setItem('my_score_v2', JSON.stringify(history));
+    document.getElementById('progBar').style.width = Math.min((history[today] / 20) * 100, 100) + "%";
 }
 
 // --- INVENTAIRE ---
 function toggleInventory() {
-  const modal = document.getElementById('inventoryModal');
-  
+    const modal = document.getElementById('inventoryModal');
+
   // AJOUTE CETTE LIGNE ICI :
-  const stats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
+    const stats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
 
-  if (modal.style.display === 'none' || !modal.style.display) {
-    let total = 0; let statsHtml = "";
-    for (let lang in DATA) { 
-        total += DATA[lang].length; 
-        statsHtml += `${lang.replace('_',' ')}: <b>${DATA[lang].length}</b><br>`; 
+    if (modal.style.display === 'none' || !modal.style.display) {
+        let total = 0; let statsHtml = "";
+        for (let lang in DATA) { 
+            total += DATA[lang].length; 
+            statsHtml += `${lang.replace('_',' ')}: <b>${DATA[lang].length}</b><br>`; 
+        }
+        document.getElementById('statsContent').innerHTML = `Total vocabulaire: <b>${total}</b> mots<br>${statsHtml}`;
+        
+        let mode = document.getElementById('modeSelect').value;
+        let listHtml = `<h3>Mode ${mode.toUpperCase()} :</h3><ul>`;
+        
+        DATA[mode].forEach(item => {
+        let key = typeof item === 'string' ? item : item.a;
+        
+        // Maintenant stats[key] fonctionnera !
+        let count = stats[key] || 0;
+    
+        let stars = "";
+        if (count >= 10) stars = " ⭐⭐⭐";
+        else if (count >= 5) stars = " ⭐⭐";
+        else if (count >= 2) stars = " ⭐";
+
+        let color = count >= 5 ? "#4CAF50" : (count > 0 ? "#FFA500" : "#888");
+
+        listHtml += `<li style="margin-bottom:5px;">`;
+        listHtml += typeof item === 'string' ? item : `<b>${item.q}</b> = ${item.a}`;
+        listHtml += ` <span style="color:${color}; font-weight:bold;">(${count} ✅)${stars}</span></li>`;
+        });
+        document.getElementById('inventoryContent').innerHTML = listHtml + "</ul>";
+        modal.style.display = 'block';
+    } else {
+        modal.style.display = 'none';
     }
-    document.getElementById('statsContent').innerHTML = `Total vocabulaire: <b>${total}</b> mots<br>${statsHtml}`;
-    
-    let mode = document.getElementById('modeSelect').value;
-    let listHtml = `<h3>Mode ${mode.toUpperCase()} :</h3><ul>`;
-    
-    DATA[mode].forEach(item => {
-      let key = typeof item === 'string' ? item : item.a;
-      
-      // Maintenant stats[key] fonctionnera !
-      let count = stats[key] || 0;
-  
-      let stars = "";
-      if (count >= 10) stars = " ⭐⭐⭐";
-      else if (count >= 5) stars = " ⭐⭐";
-      else if (count >= 2) stars = " ⭐";
-
-      let color = count >= 5 ? "#4CAF50" : (count > 0 ? "#FFA500" : "#888");
-
-      listHtml += `<li style="margin-bottom:5px;">`;
-      listHtml += typeof item === 'string' ? item : `<b>${item.q}</b> = ${item.a}`;
-      listHtml += ` <span style="color:${color}; font-weight:bold;">(${count} ✅)${stars}</span></li>`;
-    });
-    document.getElementById('inventoryContent').innerHTML = listHtml + "</ul>";
-    modal.style.display = 'block';
-  } else {
-    modal.style.display = 'none';
-  }
 }
 
 // --- MORSE ---
 async function playMorse(text) {
-  // CONDITION DE SÉCURITÉ : 
-  // On vérifie si la catégorie actuelle est bien le morse
-  const currentCat = document.getElementById('modeSelect').value;
-  if (currentCat === "morse_mots" || currentCat === "morse_lettres") {
-    const unit = 400 - document.getElementById('speed').value;
-    document.getElementById('light').innerText = "";
-    for (let char of text.toUpperCase()) {
-      let code = MORSE_MAP[char];
-      if (!code) continue;
-      for (let sym of code) {
-        document.getElementById('light').style.background = "white";
-        await new Promise(r => setTimeout(r, sym === '.' ? unit : unit * 3));
-        document.getElementById('light').style.background = "black";
-        await new Promise(r => setTimeout(r, unit));
-      }
-      await new Promise(r => setTimeout(r, unit * 2));
+    // CONDITION DE SÉCURITÉ : 
+    // On vérifie si la catégorie actuelle est bien le morse
+    const currentCat = document.getElementById('modeSelect').value;
+    if (currentCat === "morse_mots" || currentCat === "morse_lettres") {
+        const unit = 400 - document.getElementById('speed').value;
+        document.getElementById('light').innerText = "";
+        for (let char of text.toUpperCase()) {
+        let code = MORSE_MAP[char];
+        if (!code) continue;
+        for (let sym of code) {
+            document.getElementById('light').style.background = "white";
+            await new Promise(r => setTimeout(r, sym === '.' ? unit : unit * 3));
+            document.getElementById('light').style.background = "black";
+            await new Promise(r => setTimeout(r, unit));
+        }
+        await new Promise(r => setTimeout(r, unit * 2));
+        }
+        document.getElementById('light').innerText = "???";
     }
-    document.getElementById('light').innerText = "???";
-  }
 }
 
 // --- QUIZ ---
 async function startQuiz() {
-  const mode = document.getElementById('modeSelect').value;
-  const inputField = document.getElementById('answer');
-  
-  // 1. On vide le champ et on retire le focus (ferme le clavier s'il était ouvert)
-  inputField.value = "";
-  inputField.blur(); 
+    const mode = document.getElementById('modeSelect').value;
+    const inputField = document.getElementById('answer');
+    
+    // 1. On vide le champ et on retire le focus
+    inputField.value = "";
+    inputField.blur(); 
 
-  document.getElementById('light').innerText = "";
-  document.getElementById('light').style.background = "black";
-  
-  if (mode.startsWith('morse')) {
-    const list = (mode === 'morse_lettres') ? DATA.morse_lettres : DATA.morse_mots;
-    currentAnswer = list[Math.floor(Math.random() * list.length)];
+    document.getElementById('light').innerText = "";
+    document.getElementById('light').style.background = "black";
     
-    // 2. On ajoute "await" devant playMorse pour attendre la fin des flashs
-    // (Assure-toi que ta fonction playMorse est bien "async")
-    await playMorse(currentAnswer); 
+    // --- NOUVEAU : On définit la liste de base ---
+    const list = (mode === 'morse_lettres') ? DATA.morse_lettres : 
+                (mode === 'morse_mots') ? DATA.morse_mots : DATA[mode];
     
-    // 3. On n'ouvre le clavier qu'une fois le Morse terminé
-    inputField.focus();
-    
-  } else {
-    const pair = DATA[mode][Math.floor(Math.random() * DATA[mode].length)];
-    // --- LOGIQUE DE SWITCH ---
-    if (isReversed) {
-      // On montre la réponse (ex: Français) et on attend la question (ex: Coréen)
-      document.getElementById('light').innerText = pair.a;
-      currentAnswer = pair.q;
-      speak(pair.a); // On prononce ce qui est affiché
+    // --- CRUCIAL : On capture le mot dans la variable GLOBALE ---
+    currentWord = list[Math.floor(Math.random() * list.length)];
+
+    if (mode.startsWith('morse')) {
+        // Pour le morse, currentWord est une simple chaîne (ex: "SOS")
+        currentAnswer = currentWord;
+        
+        // 2. Attente de la fin des flashs
+        await playMorse(currentAnswer);
+        
+        // 3. Focus clavier après le Morse
+        inputField.focus();
+        
     } else {
-      // Mode normal : On montre la langue, on attend le français
-      document.getElementById('light').innerText = pair.q;
-      currentAnswer = pair.a;
-      speak(pair.q);
+        // Pour les langues, currentWord est un objet {q: "...", a: "..."}
+        
+        // --- LOGIQUE DE SWITCH CONSERVÉE ---
+        if (isReversed) {
+            // On montre la réponse (ex: Français) et on attend la question (ex: Coréen)
+            document.getElementById('light').innerText = currentWord.a;
+            currentAnswer = currentWord.q;
+            speak(currentWord.a);
+        } else {
+            // Mode normal : On montre la langue, on attend le français
+            document.getElementById('light').innerText = currentWord.q;
+            currentAnswer = currentWord.a;
+            speak(currentWord.q);
+        }
+        
+        // 4. Délai de lecture avant focus
+        setTimeout(() => {
+            inputField.focus();
+        }, 1000);
     }
-    // -------------------------
-    
-    // 4. Pour les langues, on attend 1 seconde pour laisser le temps de lire
-    setTimeout(() => {
-      inputField.focus();
-    }, 1000);
-  }
 }
+
 // Compteur réussite des mots
 
 function saveWordSuccess(word) {
-  // 1. On récupère ce qui existe déjà (ou un objet vide {})
-  let stats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
-  
-  // 2. On ajoute +1 au mot que tu viens de réussir
-  stats[word] = (stats[word] || 0) + 1;
-  
-  // 3. On range le tout dans la mémoire du téléphone
-  localStorage.setItem('word_stats_v1', JSON.stringify(stats));
-  
+    // 1. On récupère ce qui existe déjà (ou un objet vide {})
+    let stats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
+    
+    // 2. On ajoute +1 au mot que tu viens de réussir
+    stats[word] = (stats[word] || 0) + 1;
+    
+    // 3. On range le tout dans la mémoire du téléphone
+    localStorage.setItem('word_stats_v1', JSON.stringify(stats));
 }
 
 
 
 function check() {
-  const user = document.getElementById('answer').value.trim().toLowerCase();
-  if (user === currentAnswer.toLowerCase()) {
-    // --- L'ÉTAPE CRUCIALE : ENREGISTRER LE MOT ---
-    saveWordSuccess(currentAnswer);
-    updateProgress(1);
-    startQuiz();
-  } else {
-    alert("Dommage ! C'était : " + currentAnswer);
-    startQuiz();
-  }
+    const user = document.getElementById('answer').value.trim().toLowerCase();
+    if (user === currentAnswer.toLowerCase()) {
+        // --- L'ÉTAPE CRUCIALE : ENREGISTRER LE MOT ---
+        if (currentWord && currentWord.q) {
+            saveWordSuccess(currentWord.q); // Enregistre le mot étranger
+        }
+        saveWordSuccess(currentAnswer);
+        updateProgress(1);
+        document.getElementById('light').style.background = "green";
+        document.getElementById('light').innerText = "BRAVO !";
+    
+        setTimeout(() => {
+            document.getElementById('answer').value = "";
+            startQuiz(); // Passe au mot suivant
+        }, 1000);
+    } else {
+        alert("Dommage ! C'était : " + currentAnswer);
+        startQuiz();
+    }
 }
+
 
 // Touche Entrée pour valider
 document.getElementById('answer').addEventListener('keypress', function (e) {

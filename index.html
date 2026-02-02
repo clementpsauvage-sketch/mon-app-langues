@@ -53,7 +53,19 @@
                 <button class="btn-next" onclick="startQuiz()">SUIVANT</button>
             </div>
             
-            <button class="btn-black" onclick="showScreen('screen-aide')">💡 Aide</button>
+            <button class="btn-black" onclick="
+                // 1. On s'assure que la modale est fermée avant de commencer
+                document.getElementById('inventoryModal').style.display = 'none';
+                
+                // 2. On lance la fonction (elle va calculer les scores et remplir inventoryContent)
+                toggleInventory();
+                
+                // 3. IMMEDIATEMENT, on recache la modale pour qu'elle ne gêne pas l'écran d'aide
+                document.getElementById('inventoryModal').style.display = 'none';
+                
+                // 4. On affiche l'écran d'aide (qui contient maintenant les données fraîches)
+                showScreen('screen-aide');
+            ">💡 Aide</button>
         </div>
     </div>
 
@@ -61,7 +73,7 @@
         <button class="btn-back" onclick="showScreen('screen-home')">⬅️ Menu</button>
         <h2 style="color: #4CAF50;">Apprentissage Oral</h2>
 
-        <select id="oralModeSelect" onchange="startOralTraining()" style="width: 80%; padding: 10px; margin-bottom: 10px;">
+        <select id="oralModeSelect" onchange="updateOralUI(); startOralTraining()" style="width: 80%; padding: 10px; margin-bottom: 10px;">
             <option value="francais_soutenu">Français (Soutenu) 🇫🇷</option>
             <option value="morse_lettres">Morse (Lettres)</option>
             <option value="morse_mots">Morse (Mots)</option>
@@ -72,6 +84,8 @@
             <option value="chinois">Chinois 🇨🇳</option>
             <option value="coreen">Coréen 🇰🇷</option>
         </select>
+        
+
         <div id="oral-ui-container">
             <div id="lives-container" style="font-size: 1.2em; margin-bottom: 10px;">❤️❤️❤️❤️</div>
             
@@ -90,7 +104,15 @@
 
             <div class="controls">
                 <input type="text" id="oralAnswer" placeholder="Traduisez ce que vous entendez..." autocomplete="off" style="margin-top: 20px;">
-                <button id="oralSwitchBtn" onclick="isReverse = !isReverse; startOralTraining()" style="background: #333; margin-bottom: 10px;">🔄 Inverser : Entendre FR</button>
+                <div id="wrapper-reverse">
+                    <button id="btn-reverse" onclick="toggleReverse()">🔄 Inverser Langue</button>
+                </div>
+
+                <div id="wrapper-morse-speed" style="display: none; width: 85%; max-width: 320px; margin: 10px 0;">
+                    <label style="color: #ffd700; font-size: 0.8em; display: block; margin-bottom: 5px;">⚡ Vitesse Morse</label>
+                    <input type="range" id="morseSpeed" min="50" max="200" value="120" style="width: 100%;">
+                </div>
+                
                 <button class="btn-check" onclick="checkOralAnswer()" style="width: 100%;">VALIDER</button>
             </div>
         </div>
