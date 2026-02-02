@@ -1,8 +1,11 @@
-const CACHE_NAME = "appli-langues-v13";
+const CACHE_NAME = "appli-langues-v14";
 const FILES = [
   "./",
   "./index.html",
+  "./script.js",
   "./manifest.json",
+  "./style.css",
+  "./vocabulaire.js",
   "./icon-192.png",
   "./icon-512.png"
 ];
