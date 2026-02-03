@@ -10,6 +10,7 @@ let attemptsLeft = 0;
 
 let translateReversed = false; // Translate
 
+
 // --- ACTIVATION DU MODE HORS LIGNE ---
 if ('service-worker' in navigator) {
     window.addEventListener('load', () => {
@@ -17,6 +18,12 @@ if ('service-worker' in navigator) {
             .then(reg => console.log('Service Worker installé avec succès ! Scope:', reg.scope))
             .catch(err => console.error('Échec de l’installation du Service Worker:', err));
     });
+}
+
+// Force le chargement des voix au démarrage sur PC
+window.speechSynthesis.getVoices();
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
 }
 
 // Charger les données et les scores au démarrage
@@ -234,26 +241,34 @@ function getLangCode(mode) {
         'allemand': 'de-DE',
         'chinois': 'zh-CN',
         'coreen': 'ko-KR',
-        'francais_soutenu': 'fr-FR'
+        'francais_soutenu': 'fr-FR',
+        'basque': 'eu-ES',
+        'russe': 'ru-RU',
+        'arabe': 'ar-SA',
+        'hindi': 'hi-IN',
+        'grec': 'el-GR'
     };
     return mapping[mode] || 'fr-FR'; // Par défaut français si on ne trouve pas
 }
 
-function speak2(texte, langue) {
-    // On arrête toute lecture en cours pour éviter les bugs
-    window.speechSynthesis.cancel();
+function speak2(text, lang) {
+    window.speechSynthesis.cancel(); // Stop les voix en cours
 
-    const uttr = new SpeechSynthesisUtterance(texte);
-    
-    // On définit la langue (ex: 'en-GB', 'es-ES')
-    uttr.lang = langue; 
-    
-    uttr.rate = 0.9; // Vitesse normale
-    uttr.pitch = 1;  // Hauteur de voix normale
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
 
-    window.speechSynthesis.speak(uttr);
+    // --- FORCE LA VOIX SUR PC ---
+    const voices = window.speechSynthesis.getVoices();
+    // On cherche une voix qui correspond au code (ex: el-GR)
+    const matchingVoice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+    if (matchingVoice) {
+        utterance.voice = matchingVoice;
+    }
+    // ----------------------------
+
+    utterance.rate = 0.8; // Un peu plus lent pour mieux comprendre
+    window.speechSynthesis.speak(utterance);
 }
-
 // --- INITIALISATION DU SON MORSE ---
 // --- INITIALISATION DU SON ---
 // On crée le contexte une seule fois tout en haut du fichier
@@ -479,7 +494,7 @@ function speak(text) {
     window.speechSynthesis.cancel();
     const msg = new SpeechSynthesisUtterance(text);
     const mode = document.getElementById('modeSelect').value;
-    const voices = {'anglais':'en-US','espagnol':'es-ES','italien':'it-IT','allemand':'de-DE','chinois':'zh-CN','coreen':'ko-KR','francais_soutenu':'fr-FR'};
+    const voices = {'anglais':'en-US','espagnol':'es-ES','italien':'it-IT','allemand':'de-DE','chinois':'zh-CN','coreen':'ko-KR','francais_soutenu':'fr-FR','basque': 'eu-ES','russe': 'ru-RU','arabe': 'ar-SA','hindi': 'hi-IN','grec': 'el-GR'};
     msg.lang = voices[mode] || 'fr-FR';
     window.speechSynthesis.speak(msg);
 }
@@ -598,6 +613,14 @@ async function startQuiz() {
     const light = document.getElementById('light');
     light.innerText = "";
     light.style.background = "black";
+
+    // --- LE PETIT PLUS POUR L'ARABE ---
+    if (mode === 'arabe') {
+        light.style.direction = 'rtl'; // Écrit de droite à gauche
+    } else {
+        light.style.direction = 'ltr'; // Revient à la normale pour les autres
+    }
+    // ----------------------------------
     
     const list = DATA[mode];
     if (!list) return;
@@ -732,3 +755,26 @@ function renderCompletionStats(type) {
 
     chartContainer.innerHTML = html;
 }
+
+// --------- UTILE pour AJOUTER VOCABULAIRE -----------------
+
+function verifierDoublons(langue) {
+    const mots = DATA[langue];
+    const vus = new Set();
+    const doublons = [];
+
+    mots.forEach(item => {
+        const mot = typeof item === 'string' ? item : item.q;
+        if (vus.has(mot)) {
+            doublons.push(mot);
+        }
+        vus.add(mot);
+    });
+
+    if (doublons.length > 0) {
+        console.error(`⚠️ Doublons trouvés dans ${langue}:`, doublons);
+    } else {
+        console.log(`✅ Aucune répétition dans ${langue}.`);
+    }
+}
+// -------------------------------------------------------------------------
