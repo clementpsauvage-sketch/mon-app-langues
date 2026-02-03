@@ -5,6 +5,7 @@ let isReversed = false;
 let currentSort = 'alpha';
 let isReverse = false;
 let currentWord = null;
+let currentOralWord = null;
 let attemptsLeft = 0;
 
 let translateReversed = false; // Translate
@@ -18,22 +19,18 @@ function loadProgress() {
             if (DATA[lang]) {
                 parsed[lang].forEach((item, i) => {
                     if (DATA[lang][i]) {
-                        // AJOUTER CETTE LIGNE :
-                        DATA[lang][i].score = item.score || 0;
-                        DATA[lang][i].scoreOral = item.scoreOral || 0; 
+                        // Centralisation des 4 compteurs
+                        DATA[lang][i].score = item.score || 0;         // Réussite Texte
+                        DATA[lang][i].fails = item.fails || 0;         // Échec Texte
+                        DATA[lang][i].scoreOral = item.scoreOral || 0; // Réussite Oral
+                        DATA[lang][i].failsOral = item.failsOral || 0; // Échec Oral
                     }
                 });
             }
         });
-    } else {
-        // Initialisation si première fois
-        Object.keys(DATA).forEach(lang => {
-            if (Array.isArray(DATA[lang])) {
-                DATA[lang].forEach(item => item.score = 0);
-            }
-        });
     }
 }
+
 loadProgress();
 
 function saveProgress() {
@@ -118,51 +115,89 @@ function instantTranslate() {
 // --- Recherche ---
 
 
+
+//👁️ 👂
 function renderInventory() {
-    // 1. On récupère la langue et la recherche
     const mode = document.getElementById('inventoryLangSelect').value;
     const search = document.getElementById('searchInput').value.toLowerCase();
-    
-    // --- NOUVEAU : On récupère les stats de lecture depuis l'autre clé ---
-    const lectureStats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
     
     if (!DATA[mode]) return;
     
     let words = [...DATA[mode]];
 
-    // 2. Filtrage
+    // 1. Filtrage par recherche
     words = words.filter(w => 
         w.q.toLowerCase().includes(search) || 
         w.a.toLowerCase().includes(search)
     );
 
-    // 3. Tri (Modifié pour utiliser l'autre clé quand on trie par score)
+    // 2. Tri (Alpha, Lecture ou Oral)
+    // --- DANS renderInventory() ---
+
     if (currentSort === 'alpha') {
         words.sort((a, b) => a.q.localeCompare(b.q));
-    } else if (currentSort === 'score') {
-        // On trie en fonction de ce qu'il y a dans lectureStats
-        words.sort((a, b) => (lectureStats[b.q] || 0) - (lectureStats[a.q] || 0));
-    } else if (currentSort === 'scoreOral') {
+    } 
+    // Tri par succès (Meilleurs)
+    else if (currentSort === 'score') {
+        words.sort((a, b) => (b.score || 0) - (a.score || 0));
+    } 
+    else if (currentSort === 'scoreOral') {
         words.sort((a, b) => (b.scoreOral || 0) - (a.scoreOral || 0));
     }
+    // Tri par échecs (Les Pires)
+    else if (currentSort === 'worstLecture') {
+        words.sort((a, b) => (b.fails || 0) - (a.fails || 0));
+    }
+    else if (currentSort === 'worstOral') {
+        words.sort((a, b) => (b.failsOral || 0) - (a.failsOral || 0));
+    }
 
-    // 4. Affichage
+    // 3. Construction du tableau
     const list = document.getElementById('inventory-list');
-    list.innerHTML = words.map(w => {
-        // On récupère la valeur spécifique pour ce mot précis
-        const scoreLecture = lectureStats[w.q] || 0;
+    list.innerHTML = `
+        <div style="display:flex; font-weight:bold; padding:10px; border-bottom:2px solid white; font-size:0.8em; color:#ffd700;">
+            <div style="flex:2;">MOT / TRADUCTION</div>
+            <div style="flex:1; text-align:center;">LECTURE (V/X/Σ)</div>
+            <div style="flex:1; text-align:center;">ORAL (V/X/Σ)</div>
+        </div>
+    ` + words.map(w => {
+        // Stats Lecture
+        const sl = w.score || 0;
+        const fl = w.fails || 0;
+        const totalL = sl + fl;
+
+        // Stats Oral
+        const so = w.scoreOral || 0;
+        const fo = w.failsOral || 0;
+        const totalO = so + fo;
+
+        // On applique le gras sur les erreurs si elles sont importantes (> 5)
+        const highlightL = fl > 5 ? 'font-weight:bold; font-size:1.1em;' : '';
+        const highlightO = fo > 5 ? 'font-weight:bold; font-size:1.1em;' : '';
 
         return `
-            <div class="inventory-item" style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333;">
-                <span><b>${w.q}</b> : ${w.a}</span>
-                <div style="min-width: 80px; text-align: right;">
-                    <span title="Lecture">👁️ ${scoreLecture}</span>
-                    <span title="Oral" style="margin-left:10px;">👂 ${w.scoreOral || 0}</span>
+            <div class="inventory-item" style="display:flex; align-items:center; padding:12px 5px; border-bottom:1px solid #333; font-size:0.9em;">
+                <div style="flex:2; text-align:left;">
+                    <b style="color:#fff;">${w.q}</b><br>
+                    <span style="color:#aaa; font-size:0.85em;">${w.a}</span>
+                </div>
+                
+                <div style="flex:1; text-align:center; display:flex; justify-content:center; gap:5px;">
+                    <span style="color:#4CAF50;">${sl}</span>
+                    <span style="color:#ff4444; ${highlightL}">${fl}</span>
+                    <span style="color:#fff; font-weight:bold; border-left:1px solid #555; padding-left:5px;">${totalL}</span>
+                </div>
+
+                <div style="flex:1; text-align:center; display:flex; justify-content:center; gap:5px;">
+                    <span style="color:#2196F3;">${so}</span>
+                    <span style="color:#ff8800; ${highlightO}">${fo}</span>
+                    <span style="color:#fff; font-weight:bold; border-left:1px solid #555; padding-left:5px;">${totalO}</span>
                 </div>
             </div>
         `;
     }).join('');
 }
+
 
 // bouton top
 
@@ -261,14 +296,14 @@ function playMorseBip(sequence) {
 
 
 function playOralAudio() {
-    if (!currentWord) return;
+    if (!currentOralWord) return;
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
     const oralSelect = document.getElementById('oralModeSelect');
     const mode = oralSelect ? oralSelect.value : 'morse_lettres';
     
     // Correction ici : currentWord peut être un objet {q:..., a:...} ou une string
-    let textToConvert = (typeof currentWord === 'string') ? currentWord : currentWord.q;
+    let textToConvert = (typeof currentOralWord === 'string') ? currentOralWord : currentOralWord.q;
     
     if (mode.startsWith('morse')) {
         let codeMorse = "";
@@ -283,7 +318,7 @@ function playOralAudio() {
     } else {
         // Mode vocal classique
         const lang = isReverse ? 'fr-FR' : getLangCode(mode);
-        const vocalText = isReverse ? currentWord.a : currentWord.q;
+        const vocalText = isReverse ? currentOralWord.a : currentOralWord.q;
         speak2(vocalText, lang);
     }
 }
@@ -302,14 +337,31 @@ function startOralTraining() {
     attemptsLeft = livesMap[diff];
     updateLivesUI();
 
-    // 3. Sélection intelligente (Priorité scores faibles)
-    if (!DATA[mode] || DATA[mode].length === 0) {
-        alert("Mode vide ou non trouvé !");
-        return;
+    const list = (mode === 'morse_lettres') ? DATA.morse_lettres : 
+                (mode === 'morse_mots') ? DATA.morse_mots : DATA[mode];
+    
+    // --- DÉBUT DE L'ALGORITHME INTELLIGENT (ADAPTÉ À L'ORAL) ---
+    // On filtre en utilisant les compteurs ORAL et la valeur absolue
+    let motsDifficiles = list.filter(m => {
+        const s = m.scoreOral || 0;
+        const f = m.failsOral || 0;
+        // Valeur absolue de l'écart spécifique à l'oral
+        const ecart = Math.abs(f - s);
+        return ecart >= 15;
+    });
+
+    let listeTirage;
+    // 80% de chance de piocher dans les mots difficiles
+    if (motsDifficiles.length > 0 && Math.random() < 0.8) {
+        listeTirage = motsDifficiles;
+        console.log("Mode Oral : Apprentissage intelligent activé (|écart| >= 15)");
+    } else {
+        listeTirage = list;
     }
-    const sorted = [...DATA[mode]].sort((a, b) => (a.score || 0) - (b.score || 0));
-    const pool = sorted.slice(0, 10);
-    currentWord = pool[Math.floor(Math.random() * pool.length)];
+    // --- FIN DE L'ALGORITHME INTELLIGENT ---
+
+    // 3. Sélection du mot final
+    currentOralWord = listeTirage[Math.floor(Math.random() * listeTirage.length)];
 
     // 4. Reset interface
     document.getElementById('oralAnswer').value = "";
@@ -352,24 +404,24 @@ function updateOralUI() {
 
 
 function checkOralAnswer() {
-    if (!currentWord) return;
+    if (!currentOralWord) return;
 
     const val = document.getElementById('oralAnswer').value.toLowerCase().trim();
     const mode = document.getElementById('oralModeSelect').value;
 
     let correct;
     if (mode.includes('morse')) {
-        correct = (typeof currentWord === 'string' ? currentWord : currentWord.q).toLowerCase();
+        correct = (typeof currentOralWord === 'string' ? currentOralWord : currentOralWord.q).toLowerCase();
     } else {
-        correct = isReverse ? currentWord.q.toLowerCase() : currentWord.a.toLowerCase();
+        correct = isReverse ? currentOralWord.q.toLowerCase() : currentOralWord.a.toLowerCase();
     }
 
     if (val === correct) {
-        const wordKey = typeof currentWord === 'string' ? currentWord : currentWord.q;
-        saveWordSuccess(wordKey); 
+        const wordKey = typeof currentOralWord === 'string' ? currentOralWord : currentOralWord.q;
+
         
-        if (typeof currentWord === 'object') {
-            currentWord.scoreOral = (currentWord.scoreOral || 0) + 1;
+        if (typeof currentOralWord === 'object' && currentOralWord !== null) {
+            currentOralWord.scoreOral = (currentOralWord.scoreOral || 0) + 1;
             saveProgress(); 
         }
 
@@ -388,6 +440,11 @@ function checkOralAnswer() {
         if (attemptsLeft <= 0) {
             alert("Perdu ! C'était : " + correct);
             document.getElementById('oralAnswer').value = "";
+            // Sécurité : on n'incrémente les échecs que si c'est un OBJET
+            if (typeof currentOralWord === 'object' && currentOralWord !== null) {
+                currentOralWord.failsOral = (currentOralWord.failsOral || 0) + 1;
+                saveProgress();
+            }
             startOralTraining();
         } else {
             playOralAudio(); 
@@ -419,6 +476,7 @@ function speak(text) {
 }
 
 // --- PROGRESSION ---
+
 function updateProgress(pts) {
     let history = JSON.parse(localStorage.getItem('my_score_v2') || '{}');
     let today = new Date().toLocaleDateString();
@@ -428,41 +486,51 @@ function updateProgress(pts) {
 }
 
 // --- INVENTAIRE ---
+
 function toggleInventory() {
     const modal = document.getElementById('inventoryModal');
-
-  // AJOUTE CETTE LIGNE ICI :
     const stats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
 
     if (modal.style.display === 'none' || !modal.style.display) {
-        let total = 0; let statsHtml = "";
+        // 1. CALCUL DU RÉSUMÉ TEXTUEL (HAUT)
+        let total = 0; 
+        let statsHtml = "";
         for (let lang in DATA) { 
             total += DATA[lang].length; 
             statsHtml += `${lang.replace('_',' ')}: <b>${DATA[lang].length}</b><br>`; 
         }
         document.getElementById('statsContent').innerHTML = `Total vocabulaire: <b>${total}</b> mots<br>${statsHtml}`;
         
+        // 2. APPEL DE L'HISTOGRAMME (MILIEU)
+        // On affiche par défaut la version lecture au chargement
+        if (typeof renderCompletionStats === 'function') {
+            renderCompletionStats('lecture'); 
+        }
+
+        // 3. GÉNÉRATION DE LA LISTE DÉTAILLÉE (BAS)
         let mode = document.getElementById('modeSelect').value;
         let listHtml = `<h3>Mode ${mode.toUpperCase()} :</h3><ul>`;
         
         DATA[mode].forEach(item => {
-        let key = typeof item === 'string' ? item : item.a;
-        
-        // Maintenant stats[key] fonctionnera !
-        let count = stats[key] || 0;
+            // Utilisation de .q pour la clé (mot étranger) comme on l'a vu pour la cohérence
+            let key = typeof item === 'string' ? item : item.q;
+            let count = stats[key] || 0;
+            let scoreO = item.scoreOral || 0;
     
-        let stars = "";
-        if (count >= 10) stars = " ⭐⭐⭐";
-        else if (count >= 5) stars = " ⭐⭐";
-        else if (count >= 2) stars = " ⭐";
+            let stars = "";
+            if (count >= 10) stars = " ⭐⭐⭐";
+            else if (count >= 5) stars = " ⭐⭐";
+            else if (count >= 2) stars = " ⭐";
 
-        let color = count >= 5 ? "#4CAF50" : (count > 0 ? "#FFA500" : "#888");
+            let color = count >= 5 ? "#4CAF50" : (count > 0 ? "#FFA500" : "#888");
 
-        listHtml += `<li style="margin-bottom:5px;">`;
-        listHtml += typeof item === 'string' ? item : `<b>${item.q}</b> = ${item.a}`;
-        listHtml += ` <span style="color:${color}; font-weight:bold;">(${count} ✅)${stars}</span></li>`;
+            listHtml += `<li style="margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">`;
+            listHtml += typeof item === 'string' ? `<b>${item}</b>` : `<b>${item.q}</b> = ${item.a}`;
+            listHtml += `<br><span style="color:${color}; font-size:0.85em;">👁️ ${count} ✅ ${stars} | 👂 Oral: ${scoreO}</span></li>`;
         });
-        document.getElementById('inventoryContent').innerHTML = listHtml + "</ul>";
+        
+        
+        
         modal.style.display = 'block';
     } else {
         modal.style.display = 'none';
@@ -470,25 +538,43 @@ function toggleInventory() {
 }
 
 // --- MORSE ---
-async function playMorse(text) {
-    // CONDITION DE SÉCURITÉ : 
-    // On vérifie si la catégorie actuelle est bien le morse
+
+async function playMorse(item) {
     const currentCat = document.getElementById('modeSelect').value;
+    
+    // Sécurité : on vérifie si on est bien en mode morse
     if (currentCat === "morse_mots" || currentCat === "morse_lettres") {
+        
+        // 1. On récupère la chaîne de caractères (ex: "SOS")
+        // Si item est un objet {q:"A", a:".-"}, on prend item.q
+        const textToFlash = (typeof item === 'object') ? item.q : item;
+        
         const unit = 400 - document.getElementById('speed').value;
-        document.getElementById('light').innerText = "";
-        for (let char of text.toUpperCase()) {
-        let code = MORSE_MAP[char];
-        if (!code) continue;
-        for (let sym of code) {
-            document.getElementById('light').style.background = "white";
-            await new Promise(r => setTimeout(r, sym === '.' ? unit : unit * 3));
-            document.getElementById('light').style.background = "black";
-            await new Promise(r => setTimeout(r, unit));
+        const light = document.getElementById('light');
+        
+        light.innerText = ""; // On vide le texte pendant que ça clignote
+
+        for (let char of textToFlash.toUpperCase()) {
+            // 2. On récupère le code (soit via MORSE_MAP, soit via l'objet lui-même)
+            // Si l'objet contient déjà le code dans 'a', c'est encore mieux :
+            let code = (typeof item === 'object' && item.q === char) ? item.a : MORSE_MAP[char];
+            
+            if (!code) continue;
+
+            for (let sym of code) {
+                light.style.background = "white";
+                // Allumé : court pour '.', long pour '-'
+                await new Promise(r => setTimeout(r, sym === '.' ? unit : unit * 3));
+                
+                light.style.background = "black";
+                // Pause entre deux symboles d'une même lettre
+                await new Promise(r => setTimeout(r, unit));
+            }
+            // Pause entre deux lettres
+            await new Promise(r => setTimeout(r, unit * 2));
         }
-        await new Promise(r => setTimeout(r, unit * 2));
-        }
-        document.getElementById('light').innerText = "???";
+        
+        light.innerText = "???"; 
     }
 }
 
@@ -497,90 +583,80 @@ async function startQuiz() {
     const mode = document.getElementById('modeSelect').value;
     const inputField = document.getElementById('answer');
     
-    // 1. On vide le champ et on retire le focus
     inputField.value = "";
     inputField.blur(); 
 
-    document.getElementById('light').innerText = "";
-    document.getElementById('light').style.background = "black";
+    const light = document.getElementById('light');
+    light.innerText = "";
+    light.style.background = "black";
     
-    // --- NOUVEAU : On définit la liste de base ---
-    const list = (mode === 'morse_lettres') ? DATA.morse_lettres : 
-                (mode === 'morse_mots') ? DATA.morse_mots : DATA[mode];
-    
-    // --- CRUCIAL : On capture le mot dans la variable GLOBALE ---
-    currentWord = list[Math.floor(Math.random() * list.length)];
+    const list = DATA[mode];
+    if (!list) return;
 
+    // --- ALGORITHME INTELLIGENT ---
+    let motsDifficiles = list.filter(m => Math.abs((m.fails || 0) - (m.score || 0)) >= 15);
+    let listeTirage = (motsDifficiles.length > 0 && Math.random() < 0.8) ? motsDifficiles : list;
+    
+    currentWord = listeTirage[Math.floor(Math.random() * listeTirage.length)];
+
+    // --- LOGIQUE D'AFFICHAGE ---
     if (mode.startsWith('morse')) {
-        // Pour le morse, currentWord est une simple chaîne (ex: "SOS")
-        currentAnswer = currentWord;
-        
-        // 2. Attente de la fin des flashs
-        await playMorse(currentAnswer);
-        
-        // 3. Focus clavier après le Morse
-        inputField.focus();
-        
-    } else {
-        // Pour les langues, currentWord est un objet {q: "...", a: "..."}
-        
-        // --- LOGIQUE DE SWITCH CONSERVÉE ---
         if (isReversed) {
-            // On montre la réponse (ex: Français) et on attend la question (ex: Coréen)
-            document.getElementById('light').innerText = currentWord.a;
-            currentAnswer = currentWord.q;
-            speak(currentWord.a);
+            // On montre la lettre, on attend le code (.-)
+            light.innerText = currentWord.q;
+            currentAnswer = currentWord.a; 
         } else {
-            // Mode normal : On montre la langue, on attend le français
-            document.getElementById('light').innerText = currentWord.q;
-            currentAnswer = currentWord.a;
-            speak(currentWord.q);
+            // On joue le flash, on attend la lettre (A)
+            currentAnswer = currentWord.q;
+            await playMorse(currentWord);
         }
-        
-        // 4. Délai de lecture avant focus
-        setTimeout(() => {
-            inputField.focus();
-        }, 1000);
+    } else {
+        // Langues classiques
+        if (isReversed) {
+            light.innerText = currentWord.a;
+            currentAnswer = currentWord.q;
+            if(typeof speak === "function") speak(currentWord.a);
+        } else {
+            light.innerText = currentWord.q;
+            currentAnswer = currentWord.a;
+            if(typeof speak === "function") speak(currentWord.q);
+        }
     }
-}
 
-// Compteur réussite des mots
-
-function saveWordSuccess(word) {
-    // 1. On récupère ce qui existe déjà (ou un objet vide {})
-    let stats = JSON.parse(localStorage.getItem('word_stats_v1') || '{}');
-    
-    // 2. On ajoute +1 au mot que tu viens de réussir
-    stats[word] = (stats[word] || 0) + 1;
-    
-    // 3. On range le tout dans la mémoire du téléphone
-    localStorage.setItem('word_stats_v1', JSON.stringify(stats));
+    setTimeout(() => inputField.focus(), mode.startsWith('morse') && !isReversed ? 100 : 1000);
 }
 
 
 
 function check() {
     const user = document.getElementById('answer').value.trim().toLowerCase();
+    
+    if (!currentWord || !currentAnswer) return;
+
+    // On compare l'entrée utilisateur avec la réponse définie dans startQuiz
     if (user === currentAnswer.toLowerCase()) {
-        // --- L'ÉTAPE CRUCIALE : ENREGISTRER LE MOT ---
-        if (currentWord && currentWord.q) {
-            saveWordSuccess(currentWord.q); // Enregistre le mot étranger
-        }
-        saveWordSuccess(currentAnswer);
-        updateProgress(1);
+        // SUCCÈS : on augmente le score
+        currentWord.score = (currentWord.score || 0) + 1;
+        
+        // Mise à jour visuelle
         document.getElementById('light').style.background = "green";
         document.getElementById('light').innerText = "BRAVO !";
-    
-        setTimeout(() => {
-            document.getElementById('answer').value = "";
-            startQuiz(); // Passe au mot suivant
-        }, 1000);
+        if(typeof updateProgress === "function") updateProgress(1);
     } else {
+        // ÉCHEC : le score n'augmente pas, donc l'écart (tentatives - score) grandit
+        currentWord.fails = (currentWord.fails || 0) + 1;
+        document.getElementById('light').style.background = "red";
+        document.getElementById('light').innerText = "FAUX !";
         alert("Dommage ! C'était : " + currentAnswer);
-        startQuiz();
     }
-}
 
+    saveProgress(); 
+
+    setTimeout(() => {
+        document.getElementById('answer').value = "";
+        startQuiz(); 
+    }, 1000);
+}
 
 // Touche Entrée pour valider
 document.getElementById('answer').addEventListener('keypress', function (e) {
@@ -589,3 +665,61 @@ document.getElementById('answer').addEventListener('keypress', function (e) {
 
 // Initialisation
 updateProgress(0);
+
+// ------------------------------------------------------------------------
+//-------------- Apprentissage intelligent ------------------------------
+//----------------------------------------------------------------------
+
+// INVENTAIRE HISTOGRAMME
+
+// Variable pour garder en mémoire le mode actuel (lecture ou oral)
+let currentStatMode = 'lecture';
+
+function updateThresholdDisplay(val) {
+    document.getElementById('threshold-val').innerText = val;
+    renderCompletionStats(currentStatMode); // Recalcule avec le nouveau seuil
+}
+
+function renderCompletionStats(type) {
+    currentStatMode = type;
+    const threshold = parseInt(document.getElementById('mastery-threshold').value);
+    const chartContainer = document.getElementById('completion-chart');
+    
+    // On ne récupère plus lectureStats ici, car tout est dans DATA
+    let html = "";
+
+    for (let lang in DATA) {
+        const words = DATA[lang];
+        const total = words.length;
+        let successCount = 0;
+
+        words.forEach(w => {
+            if (type === 'lecture') {
+                // On va chercher .score qui vient de polyglotte_progress
+                const s = w.score || 0;
+                if (s >= threshold) successCount++;
+            } else {
+                // On va chercher .scoreOral qui vient aussi de polyglotte_progress
+                const sO = w.scoreOral || 0;
+                if (sO >= threshold) successCount++;
+            }
+        });
+
+        const percentage = total > 0 ? Math.round((successCount / total) * 100) : 0;
+        const color = type === 'lecture' ? '#4CAF50' : '#2196F3';
+
+        html += `
+            <div style="margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.75em; margin-bottom: 3px;">
+                    <span style="font-weight:bold; color: white;">${lang.toUpperCase()}</span>
+                    <span style="color: #ccc;">${successCount}/${total} (${percentage}%)</span>
+                </div>
+                <div style="background: #333; height: 10px; border-radius: 5px; overflow: hidden; border: 1px solid #444;">
+                    <div style="width: ${percentage}%; background: ${color}; height: 100%; transition: width 0.3s ease-out;"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    chartContainer.innerHTML = html;
+}

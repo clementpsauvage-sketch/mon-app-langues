@@ -327,8 +327,55 @@ const DATA = {
     {q: "크다", a: "grand"}, {q: "작다", a: "petit"}, {q: "많이", a: "beaucoup"},
     {q: "조금", a: "un peu"}, {q: "어렵다", a: "difficile"}
   ],
-  morse_lettres: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split(''),
-  morse_mots: ["HELLO", "SOS", "TEST", "OK", "WEB", "CODE", "RADIO", "SIGNAL"]
+  morse_lettres: [
+    { q: "A", a: ".-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "B", a: "-...", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "C", a: "-.-.", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "D", a: "-..", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "E", a: ".", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "F", a: "..-.", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "G", a: "--.", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "H", a: "....", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "I", a: "..", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "J", a: ".---", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "K", a: "-.-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "L", a: ".-..", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "M", a: "--", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "N", a: "-.", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "O", a: "---", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "P", a: ".--.", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "Q", a: "--.-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "R", a: ".-.", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "S", a: "...", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "T", a: "-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "U", a: "..-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "V", a: "...-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "W", a: ".--", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "X", a: "-..-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "Y", a: "-.--", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "Z", a: "--..", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "0", a: "-----", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "1", a: ".----", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "2", a: "..---", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "3", a: "...--", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "4", a: "....-", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "5", a: ".....", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "6", a: "-....", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "7", a: "--...", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "8", a: "---..", score: 0, fails: 0, scoreOral: 0, failsOral: 0 },
+    { q: "9", a: "----.", score: 0, fails: 0, scoreOral: 0, failsOral: 0 }
+  ],
+  morse_mots: [
+    { q: "HELLO", a: ".... . .-.. .-.. ---" },
+    { q: "SOS", a: "... --- ..." },
+    { q: "TEST", a: "- . ... -" },
+    { q: "OK", a: "--- -.-" },
+    { q: "WEB", a: ".-- . -..." },
+    { q: "CODE", a: "-.-. --- -.. ." },
+    { q: "RADIO", a: ".-. .- -.. .. ---" },
+    { q: "SIGNAL", a: "... .. --. -. .- .-.." }
+  ],
 };
 
 const MORSE_MAP = {'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..', '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.'};
+

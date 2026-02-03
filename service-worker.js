@@ -1,4 +1,4 @@
-const CACHE_NAME = "appli-langues-v15";
+const CACHE_NAME = "appli-langues-v16";
 const FILES = [
   "./",
   "./index.html",
