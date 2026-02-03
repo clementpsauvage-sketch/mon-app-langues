@@ -10,6 +10,15 @@ let attemptsLeft = 0;
 
 let translateReversed = false; // Translate
 
+// --- ACTIVATION DU MODE HORS LIGNE ---
+if ('service-worker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(reg => console.log('Service Worker installé avec succès ! Scope:', reg.scope))
+            .catch(err => console.error('Échec de l’installation du Service Worker:', err));
+    });
+}
+
 // Charger les données et les scores au démarrage
 function loadProgress() {
     const saved = localStorage.getItem('polyglotte_progress');
