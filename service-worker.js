@@ -1,4 +1,4 @@
-const CACHE_NAME = "appli-langues-v21";
+const CACHE_NAME = "appli-langues-v22";
 const FILES = [
   "./",
   "./index.html",
@@ -9,13 +9,9 @@ const FILES = [
   "./icon-192.png",
   "./icon-512.png",
   "./songs/anglais/anglais_1.mp3", //anglais
-  "./songs/anglais/anglais_2.mp3",
-  "./songs/anglais/anglais_3.mp3",
-  "./songs/anglais/anglais_4.mp3",
+
   "./songs/espagnol/espagnol_1.mp3",// espagnol
-  "./songs/espagnol/espagnol_2.mp3",
-  "./songs/espagnol/espagnol_3.mp3",
-  "./songs/espagnol/espagnol_4.mp3",
+
   "./songs/italien/italien_1.mp3", // italien
 
   "./songs/allemand/allemand_1.mp3", //allemand
