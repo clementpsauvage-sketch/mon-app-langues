@@ -1,4 +1,4 @@
-const CACHE_NAME = "appli-langues-v27"; // J'ai augmenté la version pour forcer la mise à jour
+const CACHE_NAME = "appli-langues-v28"; // J'ai augmenté la version pour forcer la mise à jour
 const FILES = [
   "./",
   "./index.html",
@@ -52,12 +52,17 @@ self.addEventListener("activate", e => {
   );
 });
 
-// Récupération : on sert le cache s'il existe, sinon on télécharge
-self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(res => {
-      return res || fetch(e.request);
+
+// Interception des requêtes (LE PLUS IMPORTANT)
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      // Si le fichier est dans le cache, on le renvoie direct (même hors-ligne)
+      if (response) {
+        return response;
+      }
+      // Sinon, on tente le réseau
+      return fetch(event.request);
     })
   );
 });
-
