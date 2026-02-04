@@ -1,4 +1,4 @@
-const CACHE_NAME = "appli-langues-v24"; // J'ai augmenté la version pour forcer la mise à jour
+const CACHE_NAME = "appli-langues-v25"; // J'ai augmenté la version pour forcer la mise à jour
 const FILES = [
   "./",
   "./index.html",
@@ -22,6 +22,7 @@ const FILES = [
   "./songs/coreen/coreen_1.mp3"
 ];
 
+self.skipWaiting();
 // Installation : on télécharge un par un pour ne pas bloquer si un fichier manque
 self.addEventListener("install", e => {
   e.waitUntil(
@@ -58,4 +59,22 @@ self.addEventListener("fetch", e => {
       return res || fetch(e.request);
     })
   );
+});
+
+const installBtn = document.getElementById('install-btn');
+const statusMsg = document.getElementById('status-msg');
+
+installBtn.addEventListener('click', () => {
+    statusMsg.innerText = "Recherche de mise à jour...";
+    
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js').then(reg => {
+            // Force le navigateur à vérifier si le fichier a changé sur GitHub
+            reg.update(); 
+            statusMsg.innerText = "Tentative d'installation lancée ! Attends 1 minute...";
+            console.log("Update lancé");
+        }).catch(err => {
+            statusMsg.innerText = "Erreur : " + err;
+        });
+    }
 });
