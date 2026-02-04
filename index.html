@@ -16,6 +16,7 @@
             <br><button onclick="showScreen('screen-quiz')">🗂️ Vocabulaire & Morse</button></br>
             <br><button onclick="showScreen('screen-text'); startOralTraining()">👂 Apprentissage Oral</button></br>
             <br><button onclick="showScreen('screen-chat')">💬 Translate</button></br>
+            <br><button onclick="showScreen('screen-music')" class="btn-music">🎵 Mode Karaoké</button></br>
             <br><button onclick="toggleInventory()">🔍 INVENTAIRE & STATS</button></br>
         </div>
     </div>
@@ -208,9 +209,74 @@
         </div>
 
         <div id="inventory-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #333; padding: 10px;"></div>
+    </div>
 
+    <div id="screen-music" class="screen" style="display:none; --mood-color: #ff00ff;">
+        <div id="side-panel" class="side-panel">
+            <div class="panel-handle">⚙️</div>
+            <div class="panel-content">
+                <label>Mode d'affichage</label>
+                <select id="helpModeSelect" onchange="setHelp(this.value)">
+                    <option value="none">🌑 Ombre</option>
+                    <option value="text" selected>📜 Texte</option>
+                    <option value="full">🌟 Aide Totale</option>
+                    <option value="hidden">🙈 Masquer Tout</option>
+                </select>
+                
+                <label>Langue</label>
+                <select id="musicLang" onchange="updateMusicList()">
+                    <option value="anglais">Anglais 🇬🇧</option>
+                    <option value="espagnol">Espagnol 🇪🇸</option>
+                    <option value="italien">Italien 🇮🇹</option>
+                    <option value="allemand">Allemand 🇩🇪</option>
+                    <option value="chinois">Chinois 🇨🇳</option>
+                    <option value="coreen">Coréen 🇰🇷</option>
+                    <option value="arabe">Arabe 🇸🇦</option>
+                    <option value="russe">Russe 🇷🇺</option>
+                    <option value="basque">Basque ⚪🔴🟢</option>
+                    <option value="grec">Grec 🇬🇷</option>
+                    <option value="hindi">Hindi 🇮🇳</option>
+                </select>
+
+                <label>Niveau</label>
+                <select id="difficulty">
+                    <option value="1">Niveau 1 (Zen)</option>
+                    <option value="2">Niveau 2 (Rythmé)</option>
+                    <option value="3">Niveau 3 (Énergique)</option>
+                    <option value="4">Niveau 4 (Psychédélique)</option>
+                </select>
+
+                <button onclick="stopMusic()" class="btn-stop-music">🛑 STOP</button>
+                <button id="btn-eco" onclick="toggleEcoMode()" style="background: #222; border: 1px dashed #555;">
+                    🍃 Mode Éco : OFF
+                </button>
+            </div>
+        </div>
+
+        <button class="btn-back-music" onclick="retourMusic()">⬅️</button>
+
+        <div class="music-ui-centered">
+            <h2 id="song-title" class="song-neon-title">Choisissez une mélodie</h2>
+            
+            <div id="lyrics-container">
+                <p id="lyrics-prev" class="lyric-fade"></p>
+                <div id="lyrics-active" class="lyric-main">Lancez la musique...</div>
+                <p id="lyrics-next" class="lyric-fade"></p>
+                <p id="translation" class="lyric-trans"></p>
+            </div>
+
+            <button id="btn-play-main" class="btn-play-neon" onclick="loadSong(document.getElementById('musicLang').value, document.getElementById('difficulty').value)">
+                ▶️ LANCER
+            </button>
+        </div>
+
+        <div class="visualizer-full">
+            <div class="blob-bottom"></div>
+        </div>
+    </div>
 
     <script src="vocabulaire.js"></script>
+    <script src="musique.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

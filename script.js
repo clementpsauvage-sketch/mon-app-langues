@@ -242,7 +242,7 @@ function getLangCode(mode) {
         'chinois': 'zh-CN',
         'coreen': 'ko-KR',
         'francais_soutenu': 'fr-FR',
-        'basque': 'eu-ES',
+        'basque': 'es-ES',
         'russe': 'ru-RU',
         'arabe': 'ar-SA',
         'hindi': 'hi-IN',
@@ -494,7 +494,7 @@ function speak(text) {
     window.speechSynthesis.cancel();
     const msg = new SpeechSynthesisUtterance(text);
     const mode = document.getElementById('modeSelect').value;
-    const voices = {'anglais':'en-US','espagnol':'es-ES','italien':'it-IT','allemand':'de-DE','chinois':'zh-CN','coreen':'ko-KR','francais_soutenu':'fr-FR','basque': 'eu-ES','russe': 'ru-RU','arabe': 'ar-SA','hindi': 'hi-IN','grec': 'el-GR'};
+    const voices = {'anglais':'en-US','espagnol':'es-ES','italien':'it-IT','allemand':'de-DE','chinois':'zh-CN','coreen':'ko-KR','francais_soutenu':'fr-FR','basque': 'es-ES','russe': 'ru-RU','arabe': 'ar-SA','hindi': 'hi-IN','grec': 'el-GR'};
     msg.lang = voices[mode] || 'fr-FR';
     window.speechSynthesis.speak(msg);
 }
@@ -778,3 +778,208 @@ function verifierDoublons(langue) {
     }
 }
 // -------------------------------------------------------------------------
+
+
+// ------------------------------------------------------------------------------------
+//-------------------- MODE MUSIC ----------------------
+//-----------------------------------------------------------------
+let currentAudio = null;
+let audioCtx2, analyser, dataArray, source;
+let currentHelpMode = 'full';
+let lastPhraseT = -1; // Pour éviter le clignotement
+
+// 1. L'INIT DU MOTEUR AUDIO (CORRIGÉ)
+function initAudioEngine(audioElement) {
+    if (!audioCtx2) {
+        audioCtx2 = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx2.createAnalyser(); // Correction du nom ici
+        source = audioCtx2.createMediaElementSource(audioElement);
+        source.connect(analyser);
+        analyser.connect(audioCtx2.destination);
+        analyser.fftSize = 64;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        renderFrame();
+    }
+}
+
+// 2. LE RENDU VISUEL (BLOB ET GLOW)
+function renderFrame() {
+    requestAnimationFrame(renderFrame);
+    if (!analyser) return;
+
+    analyser.getByteFrequencyData(dataArray);
+    let bass = dataArray[0]; 
+    
+    const lyricsLabel = document.getElementById('lyrics-active');
+    const blob = document.querySelector('.blob-bottom');
+    
+    // 1. LUEUR DU TEXTE (STABLE)
+    if(lyricsLabel) {
+        let glow = 10 + (bass / 8);
+        lyricsLabel.style.textShadow = `0 0 ${glow}px var(--mood-color)`;
+    }
+
+    // 2. GROSSISSEMENT DU BLOB (SANS FUITE)
+    if(blob) {
+        // On ne modifie QUE le scale. 
+        // Le centrage est géré par le CSS de .visualizer-full
+        let scale = 1 + (bass / 600); 
+        blob.style.transform = `scale(${scale})`;
+    }
+
+    if (bass > 215) createLanguageParticle();
+}
+
+// 3. LA FONCTION LOAD UNIQUE (AVEC KARAOKÉ RÉINTÉGRÉ)
+function loadSong(langue, niveau) {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+    
+    if (typeof BIBLIOTHEQUE === 'undefined') return console.error("musique.js non chargé");
+    const songData = BIBLIOTHEQUE[langue].find(s => s.niveau == niveau);
+    if (!songData) return alert("Chanson non trouvée");
+
+    currentAudio = new Audio(songData.fichier);
+    
+    // Initialise les effets au premier clic
+    currentAudio.onplay = () => initAudioEngine(currentAudio);
+    
+    // --- AJOUT ICI : Quand la chanson finit, on appelle stopMusic ---
+    currentAudio.onended = stopMusic;
+    // Applique l'ambiance
+    const screen = document.getElementById('screen-music');
+    screen.style.setProperty('--mood-color', songData.ambiance);
+    document.getElementById('song-title').innerText = songData.titre;
+
+    // Cacher le bouton jouer pendant que la musique tourne
+    document.getElementById('btn-play-main').style.display = "none";
+    
+    // --- GESTION DES PAROLES (LE RETOUR) ---
+    currentAudio.ontimeupdate = () => {
+        const ct = currentAudio.currentTime;
+        const phrase = songData.paroles.find((p, i) => {
+            const next = songData.paroles[i+1];
+            return ct >= p.t && (!next || ct < next.t);
+        });
+
+        if (phrase) {
+            updateLyricsDisplay(phrase);
+        }
+    };
+
+    currentAudio.play().catch(e => console.log("Attente interaction utilisateur"));
+}
+
+// 4. LE SYSTÈME D'AFFICHAGE INTELLIGENT
+function updateLyricsDisplay(phrase) {
+    const el = document.getElementById('lyrics-active');
+    const trans = document.getElementById('translation');
+    
+    if (lastPhraseT === phrase.t) return; // Anti-clignotement
+    lastPhraseT = phrase.t;
+
+    el.classList.remove('is-hidden');
+    trans.classList.remove('is-hidden');
+
+    if (currentHelpMode === 'hidden') {
+        el.classList.add('is-hidden');
+        trans.classList.add('is-hidden');
+    } else if (currentHelpMode === 'none') {
+        // MODE OMBRE
+        el.innerHTML = phrase.texte.split(' ').map((word, i) => 
+            `<span class="word-shadow" style="animation-delay: ${i * 0.2}s">${word}</span>`
+        ).join(' ');
+        trans.innerText = "";
+    } else {
+        // MODES TEXTE ET FULL
+        el.innerText = phrase.texte;
+        trans.innerText = (currentHelpMode === 'full') ? phrase.trad : "";
+    }
+}
+
+function setHelp(mode) {
+    currentHelpMode = mode;
+    lastPhraseT = -1; // Force le rafraîchissement
+}
+
+let isEcoMode = false;
+
+function toggleEcoMode() {
+    isEcoMode = !isEcoMode;
+    const btn = document.getElementById('btn-eco');
+    const blob = document.querySelector('.blob-bottom');
+    
+    if (isEcoMode) {
+        btn.innerText = "🍃 Mode Éco : ON";
+        btn.style.borderColor = "#4CAF50";
+        if (blob) blob.style.display = "none"; // On cache carrément le blob
+    } else {
+        btn.innerText = "🍃 Mode Éco : OFF";
+        btn.style.borderColor = "#555";
+        if (blob) blob.style.display = "block";
+    }
+}
+
+// TA NOUVELLE FONCTION STOP MISE À JOUR
+function stopMusic() {
+    console.log("Reset complet...");
+
+    // 1. Arrêt Audio
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+    }
+
+    // 2. LE "COUPE-CIRCUIT" DU BLOB
+    // On déconnecte l'analyseur s'il existe pour stopper l'écoute micro/musique
+    if (window.analyser) {
+        window.analyser.disconnect();
+    }
+
+    // 3. Remise à zéro visuelle
+    const blob = document.querySelector('.blob-bottom');
+    if (blob) {
+        blob.removeAttribute('style'); // Efface les déformations du JS
+        // Si on est en mode éco, on s'assure qu'il reste caché
+        blob.style.display = isEcoMode ? "none" : "block";
+    }
+    
+    document.documentElement.style.setProperty('--mood-color', '#ff00ff');
+
+    // 4. Interface
+    document.getElementById('song-title').innerText = "Choisissez une mélodie";
+    document.getElementById('lyrics-active').innerText = "Lancez la musique...";
+    document.getElementById('lyrics-prev').innerText = "";
+    document.getElementById('lyrics-next').innerText = "";
+    document.getElementById('translation').innerText = "";
+
+    const btnPlay = document.getElementById('btn-play-main');
+    if (btnPlay) {
+        btnPlay.style.display = "block";
+        btnPlay.style.margin = "20px auto";
+    }
+    
+    lastPhraseT = -1;
+}
+
+
+function createLanguageParticle() {
+    const container = document.getElementById('particle-container');
+    if(!container) return;
+    const p = document.createElement('div');
+    const chars = ["Ω", "λ", "あ", "я", "ع", "हि", "𓇳"];
+    p.className = 'particle';
+    p.innerText = chars[Math.floor(Math.random() * chars.length)];
+    p.style.left = Math.random() * 100 + "vw";
+    p.style.top = "80vh";
+    container.appendChild(p);
+    setTimeout(() => p.remove(), 3000);
+}
+
+function retourMusic() {
+    stopMusic();
+    showScreen('screen-home');
+}
