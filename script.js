@@ -984,48 +984,38 @@ function retourMusic() {
     showScreen('screen-home');
 }
 
-const installBtn = document.getElementById('install-btn');
 const statusMsg = document.getElementById('status-msg');
 
-installBtn.addEventListener('click', () => {
-    // 1. On change la couleur pour dire qu'on travaille
+const installBtn = document.getElementById('install-btn');
+
+installBtn.addEventListener('click', async () => {
     installBtn.style.background = "orange";
-    installBtn.innerText = "Téléchargement en cours...";
-    statusMsg.innerText = "Le téléphone récupère les fichiers sur GitHub...";
+    installBtn.innerText = "Vérification réelle...";
 
     if ('serviceWorker' in navigator) {
-        // On enregistre/met à jour le Service Worker
-        navigator.serviceWorker.register('./service-worker.js').then(reg => {
-            
-            // On force la vérification des fichiers
-            reg.update();
+        try {
+            const reg = await navigator.serviceWorker.register('./service-worker.js');
+            await reg.update();
 
-            // On écoute l'état de l'installation
-            reg.onupdatefound = () => {
-                const installingWorker = reg.installing;
-                installingWorker.onstatechange = () => {
-                    if (installingWorker.state === 'installed') {
-                        // 2. SUCCÈS : On change la couleur en VERT
-                        installBtn.style.background = "green";
-                        installBtn.innerText = "Mode Hors-ligne Prêt !";
-                        statusMsg.innerText = "Toutes les musiques sont dans la cache (60 Mo).";
-                    }
-                };
-            };
+            // On attend 2 secondes que le téléchargement commence
+            setTimeout(async () => {
+                const cache = await caches.open("appli-langues-v30"); // Utilise bien ton CACHE_NAME
+                const keys = await cache.keys();
+                
+                // On vérifie s'il y a plus de 10 fichiers (tes MP3 + HTML/CSS)
+                if (keys.length > 10) {
+                    installBtn.style.background = "green";
+                    installBtn.innerText = "Installé (" + keys.length + " fichiers)";
+                } else {
+                    installBtn.style.background = "red";
+                    installBtn.innerText = "Erreur : seulement " + keys.length + " fichiers";
+                    console.log("Fichiers manquants. Vérifie tes chemins /audio/songs/...");
+                }
+            }, 3000);
 
-            // Si c'est déjà installé (clic répété)
-            if (reg.active) {
-                installBtn.style.background = "green";
-                installBtn.innerText = "Déjà installé !";
-                statusMsg.innerText = "L'appli est déjà prête pour le mode avion.";
-            }
-
-        }).catch(err => {
-            // 3. ERREUR : On change en ROUGE
-            installBtn.style.background = "red";
-            statusMsg.innerText = "Erreur : " + err;
-        });
-    } else {
-        alert("Ton navigateur ne supporte pas le mode hors-ligne.");
+        } catch (err) {
+            installBtn.style.background = "black";
+            installBtn.innerText = "Erreur fatale";
+        }
     }
 });
