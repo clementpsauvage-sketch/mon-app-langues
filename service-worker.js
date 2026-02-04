@@ -1,4 +1,4 @@
-const CACHE_NAME = "appli-langues-v26"; // J'ai augmenté la version pour forcer la mise à jour
+const CACHE_NAME = "appli-langues-v27"; // J'ai augmenté la version pour forcer la mise à jour
 const FILES = [
   "./",
   "./index.html",

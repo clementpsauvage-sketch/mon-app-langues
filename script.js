@@ -999,7 +999,7 @@ installBtn.addEventListener('click', async () => {
 
             // On attend 2 secondes que le téléchargement commence
             setTimeout(async () => {
-                const cache = await caches.open("appli-langues-v30"); // Utilise bien ton CACHE_NAME
+                const cache = await caches.open("appli-langues-v27"); // Utilise bien ton CACHE_NAME
                 const keys = await cache.keys();
                 
                 // On vérifie s'il y a plus de 10 fichiers (tes MP3 + HTML/CSS)
