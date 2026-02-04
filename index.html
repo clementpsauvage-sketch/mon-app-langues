@@ -282,5 +282,18 @@
     <script src="vocabulaire.js"></script>
     <script src="musique.js"></script>
     <script src="script.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then(reg => {
+                console.log('Le gardien (Service Worker) est bien installé !');
+                })
+                .catch(err => {
+                console.log('Échec de l\'installation du gardien :', err);
+                });
+            });
+        }
+    </script>
 </body>
 </html>
